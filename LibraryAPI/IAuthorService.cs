@@ -1,5 +1,4 @@
-﻿using Data.Models;
-using LibraryAPI.ViewModels;
+﻿using LibraryAPI.ViewModels;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
