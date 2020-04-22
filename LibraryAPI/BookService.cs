@@ -1,33 +1,40 @@
-﻿using Data.Models;
-using LibraryAPI;
+﻿using AutoMapper;
+using Data.Models;
 using LibraryAPI.ViewModels;
 using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Linq;
+using System.Threading.Tasks;
 
 namespace Services
 {
     public class BookService : IBookService
     {
         private readonly ModelContext dbContext;
+        private readonly IMapper autoMapper;
 
-        public BookService(ModelContext dbContext)
+        public BookService(ModelContext dbContext, IMapper autoMapper)
         {
             this.dbContext = dbContext;
+            this.autoMapper = autoMapper;
         }
 
-        public IEnumerable<BookVM> GetBooks()
+        public async Task<IEnumerable<BookVM>> GetBooks()
         {
-            return dbContext.Books.Select(b => new BookVM
-            {
-                BookId = b.Bookid,
-                BookTitle = b.BookTitle,
-                Pages = b.Pages,
-                PublishDate = b.PublishDate,
-                AuthorTables = b.AuthorTables
-            }).ToList();
+            //return dbContext.Books.Select(b => new BookVM
+            //{
+            //    BookId = b.Bookid,
+            //    BookTitle = b.BookTitle,
+            //    Pages = b.Pages,
+            //    PublishDate = b.PublishDate,
+            //    AuthorTables = b.AuthorTables
+            //}).ToList();
+
+            var allBooks = await dbContext.Books.Include(x => x.AuthorTables).ToListAsync();
+            var result = this.autoMapper.Map<List<BookVM>>(allBooks);
+            return result;
 
 
             //var list = from p in dbContext.Books
@@ -43,59 +50,66 @@ namespace Services
             //return list.ToList();
         }
 
-        public BookVM GetBookById(int id)
+        public async Task<BookVM> GetBookById(int id)
         {
-            var currentBook = this.dbContext.Books.Include(x => x.AuthorTables).FirstOrDefault(b => b.Bookid == id);
-            var resultVM = new BookVM
-            {
-                BookId = currentBook.Bookid,
-                BookTitle = currentBook.BookTitle,
-                PublishDate = currentBook.PublishDate,
-                AuthorTables = currentBook.AuthorTables,
-                Pages = currentBook.Pages
-            };
+            var currentBook = await this.dbContext.Books.Include(x => x.AuthorTables).FirstOrDefaultAsync(b => b.Bookid == id);
+            //var resultVM = new BookVM
+            //{
+            //    BookId = currentBook.Bookid,
+            //    BookTitle = currentBook.BookTitle,
+            //    PublishDate = currentBook.PublishDate,
+            //    AuthorTables = currentBook.AuthorTables,
+            //    Pages = currentBook.Pages
+            //};
 
-            return resultVM;
+            //var currentBook = this.dbContext.Books.FirstOrDefault(b => b.Bookid == id);
+            var result = this.autoMapper.Map<BookVM>(currentBook);
+
+            return result;
         }
 
-        public BookVM Add(BookVM book)
+        public async Task<BookVM> Add(BookVM book)
         {
-            var bookExists = dbContext.Books.Select(b => b.BookTitle).Contains(book.BookTitle);
+            var bookExists = await dbContext.Books.Select(b => b.BookTitle).ContainsAsync(book.BookTitle);
 
             if (bookExists)
             {
                 throw new ArgumentException($"Book with name {book.BookTitle} already exists in db!");
             }
 
-            var nextVal = dbContext.BookNextVals.FromSql<BookNextValQuery>("select books_next_id.NEXTVAL from dual").ToList();
+            //var nextVal = dbContext.BookNextVals.FromSql<BookNextValQuery>("select books_next_id.NEXTVAL from dual").ToList();
+            //var bookId = Convert.ToInt32(nextVal[0].NextVal);
 
-            var bookId = Convert.ToInt32(nextVal[0].NextVal);
+            var bookId = GetNextValue();
 
-            var newBook = new BookTable
-            {
-                Bookid = bookId,
-                BookTitle = book.BookTitle,
-                Pages = book.Pages,
-                PublishDate = book.PublishDate,
-            };
+            //var newBook = new BookTable
+            //{
+            //    Bookid = bookId,
+            //    BookTitle = book.BookTitle,
+            //    Pages = book.Pages,
+            //    PublishDate = book.PublishDate,
+            //};
 
-            this.dbContext.Books.Add(newBook);
-            dbContext.SaveChanges();
+            var newBook = this.autoMapper.Map<BookTable>(book);
+            newBook.Bookid = bookId;
+            await this.dbContext.Books.AddAsync(newBook);
+            await dbContext.SaveChangesAsync();
 
-            var resultVM = new BookVM
-            {
-                BookId = newBook.Bookid,
-                BookTitle = newBook.BookTitle,
-                PublishDate = newBook.PublishDate,
-                Pages = newBook.Pages
-            };
+            //var resultVM = new BookVM
+            //{
+            //    BookId = newBook.Bookid,
+            //    BookTitle = newBook.BookTitle,
+            //    PublishDate = newBook.PublishDate,
+            //    Pages = newBook.Pages
+            //};
 
+            var resultVM = this.autoMapper.Map<BookVM>(newBook);
             return resultVM;
         }
 
-        public void Delete(int id)
+        public async Task Delete(int id)
         {
-            var currentBook = this.dbContext.Books.FirstOrDefault(b => b.Bookid == id);
+            var currentBook = await this.dbContext.Books.FirstOrDefaultAsync(b => b.Bookid == id);
 
             if (currentBook == null)
             {
@@ -103,36 +117,51 @@ namespace Services
             }
 
             this.dbContext.Books.Remove(currentBook);
-            dbContext.SaveChanges();
+            await dbContext.SaveChangesAsync();
         }
 
-        public void Update(int id, BookVM book)
+        public async Task Update(int id, BookVM book)
         {
-            var currentBook = this.dbContext.Books.FirstOrDefault(b => b.Bookid == id);
+            var currentBook = await this.dbContext.Books.FirstOrDefaultAsync(b => b.Bookid == id);
             if (currentBook == null)
             {
                 throw new ArgumentNullException($"Book with ID {id} doesn't exist!");
             }
 
-            var currentAuthor = dbContext.Authors.FirstOrDefault(x => x.AuthorId == book.AuthorTables.Select(x => x.AuthorId).FirstOrDefault());
+            var currentAuthor = await dbContext.Authors.FirstOrDefaultAsync(x => x.AuthorId == book.AuthorTables.Select(x => x.AuthorId).FirstOrDefault());
 
             if (currentAuthor != null)
             {
-                var test = book.AuthorTables.FirstOrDefault(id => id.AuthorId == currentAuthor.AuthorId);
-                UpdateAuthor(currentAuthor.AuthorId, test);
+                var test = book.AuthorTables.FirstOrDefault(author => author.AuthorId == currentAuthor.AuthorId);
+                await UpdateAuthor(currentAuthor.AuthorId, test);
             }
 
             currentBook.BookTitle = book.BookTitle;
             currentBook.PublishDate = book.PublishDate;
             currentBook.Pages = book.Pages;
-            dbContext.SaveChanges();
+            await dbContext.SaveChangesAsync();
         }
-        private void UpdateAuthor(int authorId, AuthorTable author)
+        private async Task UpdateAuthor(int authorId, AuthorTable author)
         {
-            var currentAuthor = this.dbContext.Authors.FirstOrDefault(a => a.AuthorId == authorId);
+            var currentAuthor = await this.dbContext.Authors.FirstOrDefaultAsync(a => a.AuthorId == authorId);
             currentAuthor.AuthorName = author.AuthorName;
             currentAuthor.BookTableId = author.BookTableId;
-            dbContext.SaveChanges();
+            await dbContext.SaveChangesAsync();
+        }
+
+        public int GetNextValue()
+        {
+            using (var command = dbContext.Database.GetDbConnection().CreateCommand())
+            {
+                command.CommandText = $"select books_next_id.NEXTVAL from dual";
+                dbContext.Database.OpenConnection();
+
+                using (var reader = command.ExecuteReader())
+                {
+                    reader.Read();
+                    return reader.GetInt32(0);
+                }
+            }
         }
     }
 }

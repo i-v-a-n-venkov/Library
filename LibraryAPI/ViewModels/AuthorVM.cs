@@ -8,7 +8,7 @@ namespace LibraryAPI.ViewModels
 {
     public class AuthorVM
     {
-        public int Id { get; set; }
+        public int AuthorId { get; set; }
         public string AuthorName { get; set; }
         public int BookTableId { get; set; }
     }

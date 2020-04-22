@@ -1,12 +1,9 @@
-﻿using Data.Models;
-using LibraryAPI.ViewModels;
+﻿using LibraryAPI.ViewModels;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Services;
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Security.Cryptography.Xml;
+using System.Threading.Tasks;
 
 namespace LibraryAPI.Controllers
 {
@@ -22,16 +19,16 @@ namespace LibraryAPI.Controllers
         }
         
         [HttpGet]
-        public IEnumerable<BookVM> GetBooks()
-        { 
-            var result = this.bookService.GetBooks().ToList();
+        public async Task<IEnumerable<BookVM>> GetBooks()
+        {
+            var result = await this.bookService.GetBooks();
             return result;
         } 
 
         [HttpGet("{id}")]
-        public IActionResult GetBookById(int id)
+        public async Task<IActionResult> GetBookById(int id)
         {
-            var book  = this.bookService.GetBookById(id);
+            var book  = await this.bookService.GetBookById(id);
             if (book == null)
             {
                 return NotFound();
@@ -41,23 +38,30 @@ namespace LibraryAPI.Controllers
         } 
 
         [HttpPost]
-        public IActionResult Post([FromBody]BookVM book) // Models -> book
+        public async Task<IActionResult> Post([FromBody]BookVM book)
         {
             if (!ModelState.IsValid)
             {
                 return BadRequest(ModelState);
             }
 
-            var currentBook = this.bookService.Add(book);
-            return Ok(currentBook);
+            try
+            {
+                var currentBook = await this.bookService.Add(book);
+                return Ok(currentBook);
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(ex.Message);
+            }            
         }
 
         [HttpDelete("{id}")]
-        public IActionResult Delete(int id)
+        public async Task<IActionResult> Delete(int id)
         {
             try
             {
-                this.bookService.Delete(id);
+                await this.bookService.Delete(id);
                 return Ok();
             }
             catch (ArgumentNullException ex)
@@ -67,11 +71,11 @@ namespace LibraryAPI.Controllers
         }
 
         [HttpPut("{id}")]
-        public IActionResult Update(int id, [FromBody]BookVM book)
+        public async Task<IActionResult> Update(int id, [FromBody]BookVM book)
         {
             try
             {
-                this.bookService.Update(id, book);
+               await this.bookService.Update(id, book);
                 return Ok();
             }
             catch (ArgumentNullException ex)

@@ -1,10 +1,8 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using LibraryAPI.ViewModels;
-using Microsoft.AspNetCore.Http;
+﻿using LibraryAPI.ViewModels;
 using Microsoft.AspNetCore.Mvc;
+using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace LibraryAPI.Controllers
 {
@@ -20,15 +18,15 @@ namespace LibraryAPI.Controllers
         }
 
         [HttpGet]
-        public IEnumerable<AuthorVM> GetAuthors()
+        public async Task<IEnumerable<AuthorVM>> GetAuthors()
         {
-            return this.authorService.GetAuthors();
+            return await this.authorService.GetAuthors();
         }
 
         [HttpGet("{id}")]
-        public IActionResult GetAuthorById(int id)
+        public async Task<IActionResult> GetAuthorById(int id)
         {
-            var author = this.authorService.GetAuthorById(id);
+            var author = await this.authorService.GetAuthorById(id);
             if (author == null)
             {
                 return NotFound();
@@ -38,23 +36,31 @@ namespace LibraryAPI.Controllers
         }
 
         [HttpPost]
-        public IActionResult Post([FromBody]AuthorVM author)
+        public async Task<IActionResult> Post([FromBody]AuthorVM author)
         {
             if (!ModelState.IsValid)
             {
                 return BadRequest(ModelState);
             }
 
-            var currentAuthor = this.authorService.Add(author);
-            return Ok(currentAuthor);
+            try
+            {
+                var currentAuthor = await this.authorService.Add(author);
+                return Ok(currentAuthor);
+            }
+            catch (ArgumentException ex)
+            {
+
+                return BadRequest(ex.Message);
+            };
         }
 
         [HttpDelete("{id}")]
-        public IActionResult Delete(int id)
+        public async Task<IActionResult> Delete(int id)
         {
             try
             {
-                this.authorService.Delete(id);
+               await this.authorService.Delete(id);
                 return Ok();
             }
             catch (ArgumentNullException ex)
@@ -64,11 +70,11 @@ namespace LibraryAPI.Controllers
         }
 
         [HttpPut("{id}")]
-        public IActionResult Update(int id, [FromBody]AuthorVM author)
+        public async Task<IActionResult> Update(int id, [FromBody]AuthorVM author)
         {
             try
             {
-                this.authorService.Update(id, author);
+               await this.authorService.Update(id, author);
                 return Ok();
             }
             catch (ArgumentNullException ex)
