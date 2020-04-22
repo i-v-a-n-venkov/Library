@@ -80,7 +80,7 @@ namespace Services
             //var nextVal = dbContext.BookNextVals.FromSql<BookNextValQuery>("select books_next_id.NEXTVAL from dual").ToList();
             //var bookId = Convert.ToInt32(nextVal[0].NextVal);
 
-            var bookId = GetNextValue();
+            var bookId = await GetNextValue();
 
             //var newBook = new BookTable
             //{
@@ -144,21 +144,22 @@ namespace Services
         private async Task UpdateAuthor(int authorId, AuthorTable author)
         {
             var currentAuthor = await this.dbContext.Authors.FirstOrDefaultAsync(a => a.AuthorId == authorId);
+            currentAuthor.AuthorId = author.AuthorId;
             currentAuthor.AuthorName = author.AuthorName;
             currentAuthor.BookTableId = author.BookTableId;
             await dbContext.SaveChangesAsync();
         }
 
-        public int GetNextValue()
+        public async Task<int> GetNextValue()
         {
             using (var command = dbContext.Database.GetDbConnection().CreateCommand())
             {
                 command.CommandText = $"select books_next_id.NEXTVAL from dual";
-                dbContext.Database.OpenConnection();
+               await dbContext.Database.OpenConnectionAsync();
 
                 using (var reader = command.ExecuteReader())
                 {
-                    reader.Read();
+                    await reader.ReadAsync();
                     return reader.GetInt32(0);
                 }
             }
