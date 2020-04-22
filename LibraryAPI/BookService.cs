@@ -23,48 +23,15 @@ namespace Services
 
         public async Task<IEnumerable<BookVM>> GetBooks()
         {
-            //return dbContext.Books.Select(b => new BookVM
-            //{
-            //    BookId = b.Bookid,
-            //    BookTitle = b.BookTitle,
-            //    Pages = b.Pages,
-            //    PublishDate = b.PublishDate,
-            //    AuthorTables = b.AuthorTables
-            //}).ToList();
-
             var allBooks = await dbContext.Books.Include(x => x.AuthorTables).ToListAsync();
             var result = this.autoMapper.Map<List<BookVM>>(allBooks);
             return result;
-
-
-            //var list = from p in dbContext.Books
-            //           select new BookVM
-            //           {
-            //               Author = p.Author,
-            //               BookId = p.Bookid,
-            //               BookTitle = p.BookTitle,
-            //               Pages = p.Pages,
-            //               PublishDate = p.PublishDate
-            //           };
-
-            //return list.ToList();
         }
 
         public async Task<BookVM> GetBookById(int id)
         {
             var currentBook = await this.dbContext.Books.Include(x => x.AuthorTables).FirstOrDefaultAsync(b => b.Bookid == id);
-            //var resultVM = new BookVM
-            //{
-            //    BookId = currentBook.Bookid,
-            //    BookTitle = currentBook.BookTitle,
-            //    PublishDate = currentBook.PublishDate,
-            //    AuthorTables = currentBook.AuthorTables,
-            //    Pages = currentBook.Pages
-            //};
-
-            //var currentBook = this.dbContext.Books.FirstOrDefault(b => b.Bookid == id);
             var result = this.autoMapper.Map<BookVM>(currentBook);
-
             return result;
         }
 
@@ -77,31 +44,12 @@ namespace Services
                 throw new ArgumentException($"Book with name {book.BookTitle} already exists in db!");
             }
 
-            //var nextVal = dbContext.BookNextVals.FromSql<BookNextValQuery>("select books_next_id.NEXTVAL from dual").ToList();
-            //var bookId = Convert.ToInt32(nextVal[0].NextVal);
-
             var bookId = await GetNextValue();
-
-            //var newBook = new BookTable
-            //{
-            //    Bookid = bookId,
-            //    BookTitle = book.BookTitle,
-            //    Pages = book.Pages,
-            //    PublishDate = book.PublishDate,
-            //};
 
             var newBook = this.autoMapper.Map<BookTable>(book);
             newBook.Bookid = bookId;
             await this.dbContext.Books.AddAsync(newBook);
             await dbContext.SaveChangesAsync();
-
-            //var resultVM = new BookVM
-            //{
-            //    BookId = newBook.Bookid,
-            //    BookTitle = newBook.BookTitle,
-            //    PublishDate = newBook.PublishDate,
-            //    Pages = newBook.Pages
-            //};
 
             var resultVM = this.autoMapper.Map<BookVM>(newBook);
             return resultVM;
@@ -155,7 +103,7 @@ namespace Services
             using (var command = dbContext.Database.GetDbConnection().CreateCommand())
             {
                 command.CommandText = $"select books_next_id.NEXTVAL from dual";
-               await dbContext.Database.OpenConnectionAsync();
+                await dbContext.Database.OpenConnectionAsync();
 
                 using (var reader = command.ExecuteReader())
                 {

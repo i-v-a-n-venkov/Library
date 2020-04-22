@@ -2,7 +2,6 @@
 using Data.Models;
 using LibraryAPI.ViewModels;
 using Microsoft.EntityFrameworkCore;
-using Services;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -13,32 +12,19 @@ namespace LibraryAPI
     public class AuthorService : IAuthorService
     {
         private readonly ModelContext dbContext;
-        private readonly IBookService bookService;
         private readonly IMapper autoMapper;
 
-        public AuthorService(ModelContext dbContext, IBookService bookService, IMapper autoMapper)
+        public AuthorService(ModelContext dbContext, IMapper autoMapper)
         {
             this.dbContext = dbContext;
-            this.bookService = bookService;
             this.autoMapper = autoMapper;
         }
 
         public async Task<IEnumerable<AuthorVM>> GetAuthors()
         {
-            //var authors = this.dbContext.Authors
-            //    .Include(b => b.Book)
-            //    .Select(a => new AuthorVM
-            //    {
-            //        Id = a.AuthorId,
-            //        AuthorName = a.AuthorName,
-            //        BookTableId = a.BookTableId
-            //    });
-
             var allAuthors = await dbContext.Authors.Include(x => x.Book).ToListAsync();
             var result = this.autoMapper.Map<List<AuthorVM>>(allAuthors);
             return result;
-
-            //return authors;
         }
 
         public async Task<AuthorVM> GetAuthorById(int id)
@@ -50,13 +36,6 @@ namespace LibraryAPI
             {
                 throw new ArgumentException("Author doesn't have any book!");
             }
-
-            //var resultAuthor = new AuthorVM
-            //{
-            //    Id = currentAuthor.AuthorId,
-            //    AuthorName = currentAuthor.AuthorName,
-            //    BookTableId = currentAuthor.BookTableId
-            //};
 
             var resultAuthor = this.autoMapper.Map<AuthorVM>(currentAuthor);
             return resultAuthor;
@@ -71,9 +50,6 @@ namespace LibraryAPI
                 throw new ArgumentException($"Author with name {author.AuthorName} already exists in db!");
             }
 
-            //var nextVal = dbContext.AuthorNextVals.FromSql<AuthorNextValQuery>("select authors_next_id.NEXTVAL from dual").ToList();
-            //var authorId = Convert.ToInt32(nextVal[0].NextVal);
-
             var authorId = await GetNextValue();
 
             var currentBook = await this.dbContext.Books.FindAsync(author.BookTableId);
@@ -83,25 +59,12 @@ namespace LibraryAPI
                 throw new ArgumentException($"The book with id {author.BookTableId} doesn't exist!");
             }
 
-            //var newAuthor = new AuthorTable
-            //{
-            //    AuthorId = authorId,
-            //    AuthorName = author.AuthorName,
-            //    BookTableId = author.BookTableId
-            //};
-
             var newAuthor = this.autoMapper.Map<AuthorTable>(author);
             newAuthor.AuthorId = authorId;
             currentBook.AuthorTables = new List<AuthorTable> { newAuthor };
             await this.dbContext.Authors.AddAsync(newAuthor);
 
             await dbContext.SaveChangesAsync();
-            //var resultAsVM = new AuthorVM
-            //{
-            //    Id = result.AuthorId,
-            //    AuthorName = result.AuthorName,
-            //    BookTableId = result.BookTableId
-            //};
 
             var resultAsVM = this.autoMapper.Map<AuthorVM>(newAuthor);
 
